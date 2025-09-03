@@ -2,7 +2,7 @@
 
 If you are working on this feature, make sure to update this plan.md file as you go.
 
-## PHASE 1: Backend Foundation [Not Started ⏳]
+## PHASE 1: Backend Foundation [In Progress ⏰]
 
 **Goal**: Establish backend infrastructure for entity check-up functionality
 **Estimated Time**: 2 hours
