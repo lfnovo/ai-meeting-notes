@@ -48,6 +48,19 @@ export interface EntityWithMeetings extends Entity {
   meetings: Meeting[];
 }
 
+export interface EntityLowUsage {
+  id: number;
+  name: string;
+  type_slug: string;
+  description?: string;
+  created_at: string;
+  meeting_id: number;
+  meeting_title: string;
+  meeting_date: string;
+  type_name: string;
+  color_class: string;
+}
+
 export interface EntityCreate {
   name: string;
   type_slug: string;
