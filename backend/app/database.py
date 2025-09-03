@@ -572,6 +572,12 @@ class DatabaseManager:
         """Get entities that appear in exactly 1 meeting"""
         async with self.get_connection() as conn:
             cursor = await conn.execute("""
+                WITH low_usage_entity_ids AS (
+                    SELECT entity_id
+                    FROM meeting_entities
+                    GROUP BY entity_id
+                    HAVING COUNT(meeting_id) = 1
+                )
                 SELECT 
                     e.id,
                     e.name,
@@ -587,9 +593,7 @@ class DatabaseManager:
                 JOIN entity_types et ON e.type_slug = et.slug
                 JOIN meeting_entities me ON e.id = me.entity_id
                 JOIN meetings m ON me.meeting_id = m.id
-                GROUP BY e.id, e.name, e.type_slug, e.description, e.created_at,
-                         m.id, m.title, m.date, et.name, et.color_class
-                HAVING COUNT(me.meeting_id) = 1
+                WHERE e.id IN (SELECT entity_id FROM low_usage_entity_ids)
                 ORDER BY e.created_at DESC
             """)
             rows = await cursor.fetchall()

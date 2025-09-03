@@ -1,10 +1,13 @@
 import { useState } from 'react';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { entityApi } from '@/lib/api';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Label } from '@/components/ui/label';
 import { Alert, AlertDescription } from '@/components/ui/alert';
+import type { EntityLowUsage } from '@/types';
 import { 
   Stethoscope, 
   Trash2, 
@@ -16,16 +19,46 @@ import {
 } from 'lucide-react';
 
 export default function CheckupPage() {
+  const queryClient = useQueryClient();
   const [selectedEntityIds, setSelectedEntityIds] = useState<Set<number>>(new Set());
   const [filterType, setFilterType] = useState<string>('all');
+  const [error, setError] = useState<string | null>(null);
 
-  // Placeholder data - will be replaced with actual API calls
-  const isLoading = false;
-  const entities = [
-    { id: 1, name: 'Sample Entity 1', type_slug: 'person', meeting_count: 0, last_used: null, type_name: 'Person' },
-    { id: 2, name: 'Sample Entity 2', type_slug: 'company', meeting_count: 1, last_used: '2024-01-01', type_name: 'Company' },
-    { id: 3, name: 'Sample Entity 3', type_slug: 'project', meeting_count: 0, last_used: null, type_name: 'Project' },
-  ];
+  const { data: entities, isLoading } = useQuery({
+    queryKey: ['entities', 'low-usage'],
+    queryFn: () => entityApi.getLowUsage(),
+  });
+
+  const bulkDeleteMutation = useMutation({
+    mutationFn: (ids: number[]) => entityApi.bulkDelete(ids),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['entities', 'low-usage'] });
+      setSelectedEntityIds(new Set());
+      setError(null);
+    },
+    onError: (error: any) => {
+      let errorMessage = 'Failed to delete entities';
+      
+      if (error.response?.data) {
+        const data = error.response.data;
+        if (typeof data === 'string') {
+          errorMessage = data;
+        } else if (data.detail) {
+          if (typeof data.detail === 'string') {
+            errorMessage = data.detail;
+          } else if (Array.isArray(data.detail)) {
+            errorMessage = data.detail.map((err: any) => err.msg || err).join(', ');
+          }
+        } else if (data.message) {
+          errorMessage = data.message;
+        }
+      }
+      
+      setError(errorMessage);
+    },
+  });
+
+  const entitiesList = entities?.data || [];
 
   const toggleEntitySelection = (entityId: number) => {
     const newSelection = new Set(selectedEntityIds);
@@ -54,7 +87,7 @@ export default function CheckupPage() {
     if (selectedCount === 0) return;
     
     const entityNames = Array.from(selectedEntityIds)
-      .map(id => entities.find(e => e.id === id)?.name)
+      .map(id => entitiesList.find(e => e.id === id)?.name)
       .filter(Boolean)
       .slice(0, 3)
       .join(', ');
@@ -64,9 +97,9 @@ export default function CheckupPage() {
       : `Are you sure you want to delete ${selectedCount} entities (${entityNames} and ${selectedCount - 3} more)?`;
     
     if (window.confirm(message)) {
-      // TODO: Implement bulk delete API call
-      console.log('Bulk delete:', Array.from(selectedEntityIds));
-      setSelectedEntityIds(new Set());
+      const idsArray = Array.from(selectedEntityIds);
+      const numericIds = idsArray.map(id => Number(id)).filter(id => !isNaN(id));
+      bulkDeleteMutation.mutate(numericIds);
     }
   };
 
@@ -100,16 +133,12 @@ export default function CheckupPage() {
     );
   }
 
-  // Filter entities to show only those with low/no usage
-  const problematicEntities = entities.filter(entity => 
-    entity.meeting_count === 0 || entity.meeting_count <= 1
-  );
-
+  // All entities from the API are already low usage entities
   const filteredEntities = filterType === 'all' 
-    ? problematicEntities
-    : problematicEntities.filter(entity => entity.type_slug === filterType);
+    ? entitiesList
+    : entitiesList.filter(entity => entity.type_slug === filterType);
 
-  const availableTypes = [...new Set(problematicEntities.map(entity => entity.type_slug))];
+  const availableTypes = [...new Set(entitiesList.map(entity => entity.type_slug))];
 
   return (
     <div className="space-y-6">
@@ -128,6 +157,7 @@ export default function CheckupPage() {
             <Button 
               variant="destructive" 
               onClick={handleBulkDelete}
+              disabled={bulkDeleteMutation.isPending}
               className="whitespace-nowrap"
             >
               <Trash2 className="w-4 h-4 mr-2" />
@@ -156,9 +186,9 @@ export default function CheckupPage() {
             onChange={(e) => setFilterType(e.target.value)}
             className="min-w-[160px] px-3 py-1 border rounded-md text-sm"
           >
-            <option value="all">All Types ({problematicEntities.length})</option>
+            <option value="all">All Types ({entitiesList.length})</option>
             {availableTypes.map(type => {
-              const count = problematicEntities.filter(e => e.type_slug === type).length;
+              const count = entitiesList.filter(e => e.type_slug === type).length;
               return (
                 <option key={type} value={type}>
                   {type} ({count})
@@ -186,8 +216,15 @@ export default function CheckupPage() {
         )}
       </div>
 
+      {/* Error Alert */}
+      {error && (
+        <Alert variant="destructive">
+          <AlertDescription>{error}</AlertDescription>
+        </Alert>
+      )}
+
       {/* Empty States */}
-      {problematicEntities.length === 0 && (
+      {entitiesList.length === 0 && (
         <Card>
           <CardContent className="flex flex-col items-center justify-center py-12">
             <Stethoscope className="w-12 h-12 text-green-500 mb-4" />
@@ -199,7 +236,7 @@ export default function CheckupPage() {
         </Card>
       )}
 
-      {filteredEntities.length === 0 && problematicEntities.length > 0 && filterType !== 'all' && (
+      {filteredEntities.length === 0 && entitiesList.length > 0 && filterType !== 'all' && (
         <Card>
           <CardContent className="flex flex-col items-center justify-center py-12">
             <Filter className="w-12 h-12 text-muted-foreground mb-4" />
@@ -219,18 +256,17 @@ export default function CheckupPage() {
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
           {filteredEntities.map((entity) => {
             const IconComponent = getEntityIcon(entity.type_slug);
-            const isUnused = entity.meeting_count === 0;
             
             return (
               <Card key={entity.id} className={`hover:shadow-md transition-shadow ${
-                selectedEntityIds.has(entity.id) ? 'ring-2 ring-primary' : ''
-              } ${isUnused ? 'border-orange-200' : 'border-yellow-200'}`}>
+                selectedEntityIds.has(entity.id!) ? 'ring-2 ring-primary' : ''
+              } border-yellow-200`}>
                 <CardHeader className="pb-3">
                   <div className="flex items-start justify-between">
                     <div className="flex items-center gap-3">
                       <Checkbox
-                        checked={selectedEntityIds.has(entity.id)}
-                        onCheckedChange={() => toggleEntitySelection(entity.id)}
+                        checked={selectedEntityIds.has(entity.id!)}
+                        onCheckedChange={() => toggleEntitySelection(entity.id!)}
                       />
                       <div className="flex-shrink-0">
                         <IconComponent className="w-5 h-5 text-muted-foreground" />
@@ -240,18 +276,12 @@ export default function CheckupPage() {
                           {entity.name}
                         </CardTitle>
                         <div className="flex items-center gap-2 mt-1">
-                          <Badge variant="outline">
-                            {entity.type_name || entity.type_slug}
+                          <Badge variant="outline" className={entity.color_class}>
+                            {entity.type_name}
                           </Badge>
-                          {isUnused ? (
-                            <Badge variant="destructive" className="text-xs">
-                              Unused
-                            </Badge>
-                          ) : (
-                            <Badge variant="secondary" className="text-xs">
-                              Low Usage
-                            </Badge>
-                          )}
+                          <Badge variant="secondary" className="text-xs">
+                            Low Usage
+                          </Badge>
                         </div>
                       </div>
                     </div>
@@ -260,20 +290,20 @@ export default function CheckupPage() {
                 <CardContent>
                   <div className="space-y-2">
                     <div className="flex items-center justify-between text-sm">
-                      <span className="text-muted-foreground">Meetings:</span>
-                      <span className={`font-medium ${isUnused ? 'text-red-600' : 'text-yellow-600'}`}>
-                        {entity.meeting_count}
+                      <span className="text-muted-foreground">Found in:</span>
+                      <span className="text-xs font-medium text-blue-600">
+                        {entity.meeting_title}
                       </span>
                     </div>
-                    {entity.last_used && (
-                      <div className="flex items-center justify-between text-sm">
-                        <span className="text-muted-foreground">Last used:</span>
-                        <span className="text-xs">{entity.last_used}</span>
-                      </div>
-                    )}
-                    {!entity.last_used && (
-                      <div className="text-xs text-red-600">
-                        Never mentioned in meetings
+                    <div className="flex items-center justify-between text-sm">
+                      <span className="text-muted-foreground">Meeting date:</span>
+                      <span className="text-xs">
+                        {new Date(entity.meeting_date).toLocaleDateString()}
+                      </span>
+                    </div>
+                    {entity.description && (
+                      <div className="text-xs text-muted-foreground mt-2 line-clamp-2">
+                        {entity.description}
                       </div>
                     )}
                   </div>
