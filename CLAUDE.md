@@ -8,6 +8,8 @@ This is a full-stack AI-powered meeting minutes application that processes meeti
 
 **Stack:** FastAPI (Python) backend + React TypeScript frontend with Shadcn UI components.
 
+**Key Features:** Meeting processing, entity extraction and management, entity cleanup tools, and comprehensive search capabilities.
+
 ## Development Commands
 
 ### Setup and Development

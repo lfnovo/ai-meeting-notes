@@ -71,10 +71,10 @@ export default function CheckupPage() {
   };
 
   const toggleSelectAll = () => {
-    if (selectedEntityIds.size === entities.length) {
+    if (selectedEntityIds.size === filteredEntities.length && filteredEntities.length > 0) {
       setSelectedEntityIds(new Set());
     } else {
-      setSelectedEntityIds(new Set(entities.map(e => e.id)));
+      setSelectedEntityIds(new Set(filteredEntities.map(e => e.id).filter(id => id !== undefined) as number[]));
     }
   };
 
@@ -99,6 +99,12 @@ export default function CheckupPage() {
     if (window.confirm(message)) {
       const idsArray = Array.from(selectedEntityIds);
       const numericIds = idsArray.map(id => Number(id)).filter(id => !isNaN(id));
+      
+      if (numericIds.length === 0) {
+        setError('No valid entities selected for deletion');
+        return;
+      }
+      
       bulkDeleteMutation.mutate(numericIds);
     }
   };
