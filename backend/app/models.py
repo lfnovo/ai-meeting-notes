@@ -181,6 +181,28 @@ class EntityWithType(Entity):
         from_attributes = True
 
 
+# Entity with Low Usage Information (for check-up feature)
+class EntityLowUsage(BaseModel):
+    # Standard entity fields
+    id: Optional[int] = None
+    name: str = Field(..., min_length=1, max_length=255)
+    type_slug: str = Field(..., min_length=1, max_length=50)
+    description: Optional[str] = None
+    created_at: Optional[datetime] = None
+    
+    # Meeting context fields
+    meeting_id: int
+    meeting_title: str = Field(..., min_length=1, max_length=255)
+    meeting_date: datetime
+    
+    # Entity type context fields
+    type_name: str = Field(..., min_length=1, max_length=50)
+    color_class: str = Field(..., min_length=1, max_length=100)
+
+    class Config:
+        from_attributes = True
+
+
 # Response Models with relationships
 class MeetingWithEntities(Meeting):
     entities: List[EntityWithType] = Field(default_factory=list)

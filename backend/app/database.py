@@ -10,7 +10,7 @@ from .models import (
     Entity, Meeting, ActionItem, MeetingEntity, EntityTypeModel, MeetingType,
     EntityCreate, EntityUpdate, MeetingCreate, MeetingUpdate,
     ActionItemCreate, ActionItemUpdate, EntityTypeCreate, EntityTypeUpdate,
-    MeetingTypeCreate, MeetingTypeUpdate, EntityWithType
+    MeetingTypeCreate, MeetingTypeUpdate, EntityWithType, EntityLowUsage
 )
 
 
@@ -26,6 +26,10 @@ class DatabaseManager:
         """Get database connection with automatic cleanup"""
         conn = await aiosqlite.connect(self.db_path)
         conn.row_factory = aiosqlite.Row
+        
+        # Enable foreign key constraints for proper CASCADE behavior
+        await conn.execute("PRAGMA foreign_keys = ON")
+        
         try:
             yield conn
         finally:
@@ -535,11 +539,66 @@ class DatabaseManager:
             return await self.get_entity_by_id(entity_id)
     
     async def delete_entity(self, entity_id: int) -> bool:
-        """Delete an entity"""
+        """Delete an entity and all its relationships"""
         async with self.get_connection() as conn:
-            cursor = await conn.execute("DELETE FROM entities WHERE id = ?", (entity_id,))
-            await conn.commit()
-            return cursor.rowcount > 0
+            # First, check if entity exists
+            cursor = await conn.execute("SELECT COUNT(*) FROM entities WHERE id = ?", (entity_id,))
+            count = (await cursor.fetchone())[0]
+            
+            if count == 0:
+                return False
+            
+            try:
+                # Begin transaction (SQLite autocommit is off inside the connection context)
+                # First delete all relationships in meeting_entities junction table
+                await conn.execute("DELETE FROM meeting_entities WHERE entity_id = ?", (entity_id,))
+                
+                # Then delete the entity itself
+                cursor = await conn.execute("DELETE FROM entities WHERE id = ?", (entity_id,))
+                
+                # Commit the transaction
+                await conn.commit()
+                
+                # Return True if entity was actually deleted
+                return cursor.rowcount > 0
+                
+            except Exception as e:
+                # Rollback transaction on error
+                await conn.rollback()
+                logger.error(f"Error deleting entity {entity_id}: {e}")
+                return False
+    
+    async def get_low_usage_entities(self) -> List[EntityLowUsage]:
+        """Get entities that appear in exactly 1 meeting"""
+        async with self.get_connection() as conn:
+            cursor = await conn.execute("""
+                WITH low_usage_entity_ids AS (
+                    SELECT entity_id
+                    FROM meeting_entities
+                    GROUP BY entity_id
+                    HAVING COUNT(meeting_id) = 1
+                )
+                SELECT 
+                    e.id,
+                    e.name,
+                    e.type_slug,
+                    e.description,
+                    e.created_at,
+                    m.id as meeting_id,
+                    m.title as meeting_title,
+                    m.date as meeting_date,
+                    et.name as type_name,
+                    et.color_class as color_class
+                FROM entities e
+                JOIN entity_types et ON e.type_slug = et.slug
+                JOIN meeting_entities me ON e.id = me.entity_id
+                JOIN meetings m ON me.meeting_id = m.id
+                WHERE e.id IN (SELECT entity_id FROM low_usage_entity_ids)
+                ORDER BY e.created_at DESC
+            """)
+            rows = await cursor.fetchall()
+            
+            return [EntityLowUsage(**dict(row)) for row in rows]
     
     # Meeting operations
     async def create_meeting(self, meeting_data: MeetingCreate) -> Meeting:

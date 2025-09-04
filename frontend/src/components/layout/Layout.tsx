@@ -5,7 +5,8 @@ import {
   Users, 
   Home,
   Plus,
-  Settings
+  Settings,
+  Wrench
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 
@@ -18,6 +19,7 @@ const navigation = [
   { name: 'Meetings', href: '/meetings', icon: Calendar },
   { name: 'Entities', href: '/entities', icon: Users },
   { name: 'Admin', href: '/admin', icon: Settings },
+  { name: 'Check-up', href: '/checkup', icon: Wrench },
 ];
 
 export default function Layout({ children }: LayoutProps) {

@@ -16,7 +16,7 @@ from ..models import (
     EntityTypeCreate, EntityTypeUpdate,
     MeetingTypeCreate, MeetingTypeUpdate,
     MeetingWithEntities, EntityWithMeetings, EntityWithType,
-    MeetingProcessRequest
+    MeetingProcessRequest, EntityLowUsage
 )
 from ..services.meeting_processor import MeetingProcessor
 from ..services.entity_manager import EntityManager
@@ -227,6 +227,16 @@ async def list_entities(
         raise HTTPException(status_code=500, detail=str(e))
 
 
+@router.get("/entities/low-usage", response_model=List[EntityLowUsage])
+async def get_low_usage_entities(db: DatabaseManager = Depends(get_db)):
+    """Get entities that appear in exactly 1 meeting (low usage entities)"""
+    try:
+        return await db.get_low_usage_entities()
+    except Exception as e:
+        logger.error(f"Error retrieving low usage entities: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
 @router.get("/entities/{entity_id}", response_model=EntityWithType)
 async def get_entity(
     entity_id: int,
@@ -361,6 +371,7 @@ async def get_entity_meetings(
         raise HTTPException(status_code=404, detail="Entity not found")
     
     return await db.get_meetings_by_entity(entity_id)
+
 
 
 # Meeting endpoints
