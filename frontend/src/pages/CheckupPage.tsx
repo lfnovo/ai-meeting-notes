@@ -2,20 +2,18 @@ import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { entityApi } from '@/lib/api';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Label } from '@/components/ui/label';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import type { EntityLowUsage } from '@/types';
 import { 
   Stethoscope, 
   Trash2, 
   Filter, 
   X, 
   Users,
-  AlertTriangle,
-  Settings
+  AlertTriangle
 } from 'lucide-react';
 
 export default function CheckupPage() {
