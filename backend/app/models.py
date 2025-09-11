@@ -181,6 +181,14 @@ class EntityWithType(Entity):
         from_attributes = True
 
 
+# Entity with Usage Statistics for Cleanup
+class EntityWithUsageStats(EntityWithType):
+    meeting_count: int = 0
+
+    class Config:
+        from_attributes = True
+
+
 # Response Models with relationships
 class MeetingWithEntities(Meeting):
     entities: List[EntityWithType] = Field(default_factory=list)

@@ -10,7 +10,7 @@ from .models import (
     Entity, Meeting, ActionItem, MeetingEntity, EntityTypeModel, MeetingType,
     EntityCreate, EntityUpdate, MeetingCreate, MeetingUpdate,
     ActionItemCreate, ActionItemUpdate, EntityTypeCreate, EntityTypeUpdate,
-    MeetingTypeCreate, MeetingTypeUpdate, EntityWithType
+    MeetingTypeCreate, MeetingTypeUpdate, EntityWithType, EntityWithUsageStats
 )
 
 
@@ -540,6 +540,23 @@ class DatabaseManager:
             cursor = await conn.execute("DELETE FROM entities WHERE id = ?", (entity_id,))
             await conn.commit()
             return cursor.rowcount > 0
+
+    async def get_low_usage_entities(self) -> List[EntityWithUsageStats]:
+        """Get entities with low usage (≤1 meeting associations) for cleanup purposes"""
+        async with self.get_connection() as conn:
+            cursor = await conn.execute("""
+                SELECT e.*, et.name as type_name, et.color_class as type_color_class,
+                       COALESCE(COUNT(me.meeting_id), 0) as meeting_count
+                FROM entities e
+                LEFT JOIN entity_types et ON e.type_slug = et.slug
+                LEFT JOIN meeting_entities me ON e.id = me.entity_id
+                GROUP BY e.id, e.name, e.type_slug, e.description, e.created_at
+                HAVING COUNT(me.meeting_id) <= 1
+                ORDER BY e.name
+            """)
+            rows = await cursor.fetchall()
+            
+            return [EntityWithUsageStats(**dict(row)) for row in rows]
     
     # Meeting operations
     async def create_meeting(self, meeting_data: MeetingCreate) -> Meeting:

@@ -16,7 +16,7 @@ from ..models import (
     EntityTypeCreate, EntityTypeUpdate,
     MeetingTypeCreate, MeetingTypeUpdate,
     MeetingWithEntities, EntityWithMeetings, EntityWithType,
-    MeetingProcessRequest
+    EntityWithUsageStats, MeetingProcessRequest
 )
 from ..services.meeting_processor import MeetingProcessor
 from ..services.entity_manager import EntityManager
@@ -224,6 +224,17 @@ async def list_entities(
         return await db.get_entities(limit=limit, offset=offset)
     except Exception as e:
         logger.error(f"Error listing entities: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.get("/entities/low-usage", response_model=List[EntityWithUsageStats])
+async def get_low_usage_entities(db: DatabaseManager = Depends(get_db)):
+    """Get entities with low usage (≤1 meeting associations) for cleanup purposes"""
+    try:
+        logger.info("Fetching low usage entities for cleanup")
+        return await db.get_low_usage_entities()
+    except Exception as e:
+        logger.error(f"Error fetching low usage entities: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
 
