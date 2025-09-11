@@ -550,7 +550,7 @@ class DatabaseManager:
                 FROM entities e
                 LEFT JOIN entity_types et ON e.type_slug = et.slug
                 LEFT JOIN meeting_entities me ON e.id = me.entity_id
-                GROUP BY e.id, e.name, e.type_slug, e.description, e.created_at
+                GROUP BY e.id, e.name, e.type_slug, e.description, e.created_at, et.name, et.color_class
                 HAVING COUNT(me.meeting_id) <= 1
                 ORDER BY e.name
             """)

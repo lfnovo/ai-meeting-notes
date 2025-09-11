@@ -6,6 +6,7 @@ A FastAPI-based application for processing meeting recordings and transcripts to
 
 - **Meeting Processing**: Upload audio recordings or transcripts to extract summaries, entities, and action items
 - **Entity Management**: Track and manage entities (people, companies, projects) across meetings
+- **Entity Cleanup**: Remove low-engagement entities with bulk deletion tools
 - **Meeting Feed**: Browse meetings chronologically with summaries
 - **Entity Relationships**: View all meetings associated with specific entities
 
@@ -58,6 +59,8 @@ Visit http://localhost:3000 to use the app!
 - `GET /meetings/{id}` - Get meeting details
 - `GET /entities` - List all entities
 - `POST /entities` - Create a new entity
+- `GET /entities/low-usage` - Get entities with low meeting engagement
+- `POST /entities/bulk-delete` - Delete multiple entities
 - `GET /entities/{id}/meetings` - Get meetings for an entity
 
 ## Development
