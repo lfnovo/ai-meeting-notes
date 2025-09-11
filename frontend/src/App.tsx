@@ -8,6 +8,7 @@ import EntitiesPage from '@/pages/EntitiesPage';
 import EntityDetailPage from '@/pages/EntityDetailPage';
 import NewMeetingPage from '@/pages/NewMeetingPage';
 import AdminPage from '@/pages/AdminPage';
+import CleanupPage from '@/pages/CleanupPage';
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -31,6 +32,7 @@ function App() {
             <Route path="/entities" element={<EntitiesPage />} />
             <Route path="/entities/:id" element={<EntityDetailPage />} />
             <Route path="/admin" element={<AdminPage />} />
+            <Route path="/cleanup" element={<CleanupPage />} />
           </Routes>
         </Layout>
       </Router>

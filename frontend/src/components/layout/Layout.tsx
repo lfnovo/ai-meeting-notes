@@ -5,7 +5,8 @@ import {
   Users, 
   Home,
   Plus,
-  Settings
+  Settings,
+  Trash2
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 
@@ -18,6 +19,7 @@ const navigation = [
   { name: 'Meetings', href: '/meetings', icon: Calendar },
   { name: 'Entities', href: '/entities', icon: Users },
   { name: 'Admin', href: '/admin', icon: Settings },
+  { name: 'Cleanup', href: '/cleanup', icon: Trash2 },
 ];
 
 export default function Layout({ children }: LayoutProps) {

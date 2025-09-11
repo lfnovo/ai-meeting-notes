@@ -118,3 +118,7 @@ export interface ProcessingResult {
   entities: string[];
   action_items: string[];
 }
+
+export interface EntityWithUsageStats extends Entity {
+  meeting_count: number;
+}
