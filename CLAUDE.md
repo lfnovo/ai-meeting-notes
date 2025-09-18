@@ -48,7 +48,7 @@ cd frontend && npm run type-check  # TypeScript checking
 ### Frontend Structure  
 - **Modern React**: Uses React 19 with TypeScript, React Router v7, and TanStack Query
 - **UI Components**: Shadcn UI components in `components/ui/` with Tailwind CSS
-- **Pages**: Route components in `pages/` directory
+- **Pages**: Route components in `pages/` directory (includes EntityCleanupPage for data management)
 - **Types**: TypeScript interfaces in `types/index.ts` mirror backend Pydantic models
 - **State Management**: TanStack Query for server state, React hooks for local state
 
@@ -64,6 +64,7 @@ The app uses a dynamic entity type system where entity types can be customized t
 - Database operations go through `DatabaseManager` class methods
 - OpenAI processing happens in `meeting_processor.py` service
 - All API endpoints follow RESTful conventions with proper HTTP status codes
+- Cleanup endpoints (`/entities/cleanup`, `/entities/bulk`) follow bulk operations pattern
 
 ### Frontend  
 - Components use Shadcn UI patterns with `cn()` utility for conditional classes

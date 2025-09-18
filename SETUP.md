@@ -68,6 +68,7 @@ npm run dev
 - ✅ Generate summaries and action items
 - ✅ Browse meetings in a feed view
 - ✅ Manage entities and their relationships
+- ✅ Clean up low-engagement entities
 
 ## API Endpoints
 
