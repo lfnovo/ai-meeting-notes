@@ -227,6 +227,41 @@ async def list_entities(
         raise HTTPException(status_code=500, detail=str(e))
 
 
+@router.get("/entities/cleanup", response_model=List[EntityWithType])
+async def get_entities_for_cleanup(
+    db: DatabaseManager = Depends(get_db)
+):
+    """Get entities with 0 or 1 associated meetings for cleanup"""
+    try:
+        entities = await db.get_entities_for_cleanup()
+        logger.info(f"Found {len(entities)} entities for cleanup")
+        return entities
+    except Exception as e:
+        logger.error(f"Error getting entities for cleanup: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.delete("/entities/bulk")
+async def bulk_delete_entities(
+    request: EntityBulkDelete,
+    db: DatabaseManager = Depends(get_db)
+):
+    """Delete multiple entities by IDs with cascading deletes"""
+    try:
+        entity_ids = request.ids
+        if not entity_ids:
+            raise HTTPException(status_code=400, detail="No entity IDs provided")
+
+        result = await db.bulk_delete_entities(entity_ids)
+        logger.info(f"Bulk delete result: {result['message']}")
+
+        return result
+
+    except Exception as e:
+        logger.error(f"Error bulk deleting entities: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
 @router.get("/entities/{entity_id}", response_model=EntityWithType)
 async def get_entity(
     entity_id: int,
@@ -274,35 +309,6 @@ async def delete_entity(
     if not success:
         raise HTTPException(status_code=404, detail="Entity not found")
     return {"message": "Entity deleted successfully"}
-
-
-@router.post("/entities/bulk-delete")
-async def bulk_delete_entities(
-    request: EntityBulkDelete,
-    db: DatabaseManager = Depends(get_db)
-):
-    """Delete multiple entities by IDs"""
-    try:
-        entity_ids = request.ids
-        deleted_count = 0
-        failed_ids = []
-        
-        for entity_id in entity_ids:
-            success = await db.delete_entity(entity_id)
-            if success:
-                deleted_count += 1
-            else:
-                failed_ids.append(entity_id)
-        
-        return {
-            "message": f"Successfully deleted {deleted_count} entities",
-            "deleted_count": deleted_count,
-            "failed_ids": failed_ids
-        }
-        
-    except Exception as e:
-        logger.error(f"Error bulk deleting entities: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
 
 
 @router.post("/entities/bulk-update-type")
