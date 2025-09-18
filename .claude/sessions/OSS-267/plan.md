@@ -87,11 +87,11 @@ Verify API functionality using manual testing:
 - API layer is ready for frontend integration in Phase 3
 - Error handling and logging work correctly for both endpoints
 
-## PHASE 3: Frontend Navigation and Routing [Not Started ⏳]
+## PHASE 3: Frontend Navigation and Routing [Completed ✅]
 
 Set up the frontend infrastructure for the cleanup feature including routing and navigation updates.
 
-### Add cleanup route to App.tsx [Not Started ⏳]
+### Add cleanup route to App.tsx [Completed ✅]
 
 Update `frontend/src/App.tsx` to include:
 - New route path="/entities/cleanup" with EntityCleanupPage component
@@ -99,7 +99,7 @@ Update `frontend/src/App.tsx` to include:
 - Route positioned appropriately within existing Routes structure
 - Ensure route follows existing routing patterns
 
-### Update navigation in Layout.tsx [Not Started ⏳]
+### Update navigation in Layout.tsx [Completed ✅]
 
 Modify `frontend/src/components/layout/Layout.tsx` to:
 - Add "Cleanup" navigation item to existing navigation array
@@ -108,7 +108,7 @@ Modify `frontend/src/components/layout/Layout.tsx` to:
 - Update navigation array with proper href="/entities/cleanup"
 - Ensure active state highlighting works correctly
 
-### Add API methods to api.ts [Not Started ⏳]
+### Add API methods to api.ts [Completed ✅]
 
 Extend `frontend/src/lib/api.ts` with new methods:
 - Add getForCleanup method that calls GET /entities/cleanup
@@ -117,16 +117,44 @@ Extend `frontend/src/lib/api.ts` with new methods:
 - Ensure TypeScript types are properly defined
 - Add to existing entityApi object structure
 
-### Comments:
-- These tasks can be done in parallel since they're independent frontend infrastructure changes
-- Route and navigation changes are foundational for the cleanup page implementation
-- API methods should match the backend endpoint specifications exactly
+### Create EntityCleanupPage placeholder [Completed ✅]
 
-## PHASE 4: Frontend Entity Cleanup Page [Not Started ⏳]
+Create basic placeholder component:
+- Created `/frontend/src/pages/EntityCleanupPage.tsx` with basic UI structure
+- Added proper page title and description
+- Included placeholder content indicating feature in development
+- Follows existing page component patterns
+
+### Test frontend navigation and routing [Completed ✅]
+
+Verify frontend infrastructure works correctly:
+- Frontend dev server starts successfully on port 3000
+- Backend API accessible on port 8000
+- Frontend proxy correctly routes API calls to backend
+- Navigation link appears in Layout between Entities and Admin
+- Cleanup route loads placeholder page correctly
+
+### Comments:
+- All frontend infrastructure tasks completed successfully
+- Navigation includes new "Cleanup" link with Trash2 icon positioned correctly between Entities and Admin
+- API methods added to entityApi with proper TypeScript types:
+  - getForCleanup(): returns Entity[] from GET /entities/cleanup
+  - bulkDelete(ids): returns BulkDeleteResponse from DELETE /entities/bulk
+- Updated existing bulkDelete method to use new endpoint structure
+- Added BulkDeleteResponse type to match backend response format
+- EntityCleanupPage placeholder created as simple functional component
+- Frontend/backend integration tested and working:
+  - Backend serves API at localhost:8000
+  - Frontend serves UI at localhost:3000 with proxy to backend
+  - API endpoints accessible via both direct backend and frontend proxy
+- Route structure properly handles /entities/cleanup before /entities/:id parameterized route
+- Foundation ready for Phase 4 implementation of the main cleanup functionality
+
+## PHASE 4: Frontend Entity Cleanup Page [Completed ✅]
 
 Implement the main cleanup page with entity list display, bulk selection, and confirmation modal functionality.
 
-### Create EntityCleanupPage component [Not Started ⏳]
+### Create EntityCleanupPage component [Completed ✅]
 
 Develop `frontend/src/pages/EntityCleanupPage.tsx` with:
 - Main page container following existing page patterns
@@ -136,7 +164,7 @@ Develop `frontend/src/pages/EntityCleanupPage.tsx` with:
 - Integration with existing layout and styling patterns
 - Proper TypeScript interfaces for component props and state
 
-### Implement entity list with bulk selection [Not Started ⏳]
+### Implement entity list with bulk selection [Completed ✅]
 
 Within EntityCleanupPage, create entity list that:
 - Displays entities with checkboxes for selection
@@ -147,7 +175,7 @@ Within EntityCleanupPage, create entity list that:
 - Follows existing EntitiesPage patterns for consistency
 - Handles empty state when no entities need cleanup
 
-### Create bulk delete confirmation modal [Not Started ⏳]
+### Create bulk delete confirmation modal [Completed ✅]
 
 Implement confirmation modal that:
 - Uses shadcn/ui Dialog component patterns
@@ -158,7 +186,7 @@ Implement confirmation modal that:
 - Handles success/error responses from bulk delete operation
 - Shows detailed feedback for partial failures
 
-### Implement success/error feedback system [Not Started ⏳]
+### Implement success/error feedback system [Completed ✅]
 
 Add user feedback functionality that:
 - Shows success message with count of deleted entities
@@ -168,11 +196,36 @@ Add user feedback functionality that:
 - Handles partial failure scenarios with detailed messaging
 - Includes proper loading states during operations
 
+### Test complete cleanup functionality [Completed ✅]
+
+Comprehensive testing of the full user workflow:
+- Frontend/backend integration tested successfully
+- Entity list loading and display working correctly
+- Bulk selection and deselection functionality working
+- Confirmation modal displays entity names correctly
+- Bulk deletion API integration working with proper response handling
+- Success/error feedback system displaying detailed messages
+- Partial failure scenarios handled correctly
+
 ### Comments:
-- EntityCleanupPage is the main component and should be implemented first
-- Entity list and modal can be developed in parallel once main page structure exists
-- Feedback system should be integrated throughout all interactive components
-- All components should follow existing design patterns and reuse existing UI components
+- Complete EntityCleanupPage implemented successfully using react-developer sub-agent
+- All features working as specified:
+  - **TanStack Query Integration**: Uses ['entities-cleanup'] queryKey with proper cache invalidation
+  - **Entity Grid**: Card-based layout with checkboxes, type icons, and "Low Usage" badges
+  - **Bulk Selection**: Select all/deselect all with dynamic selection counts
+  - **Confirmation Modal**: Custom modal showing up to 5 entity names with "...and X more" for larger lists
+  - **Success/Error Handling**: Comprehensive BulkDeleteResponse handling with detailed partial failure messages
+  - **Empty State**: "All Clean!" state with Sparkles icon when no entities need cleanup
+  - **Loading States**: Skeleton loading with animated placeholders
+- **Testing Results**:
+  - Initial cleanup entities: 150 found
+  - Successful bulk deletion: 2 entities deleted successfully
+  - Partial failure test: 2 of 3 entities deleted (1 failed with proper error message)
+  - Final count: 146 entities (confirming 4 total deletions)
+  - API endpoints working correctly through frontend proxy
+- **UI/UX**: Follows EntitiesPage patterns with proper styling, responsive design, and accessibility
+- **TypeScript**: Fully typed with Entity and BulkDeleteResponse interfaces
+- Phase 4 is complete and ready for Phase 5 (Testing and Polish)
 
 ## PHASE 5: Testing and Polish [Not Started ⏳]
 

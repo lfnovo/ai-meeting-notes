@@ -6,6 +6,7 @@ import MeetingsPage from '@/pages/MeetingsPage';
 import MeetingDetailPage from '@/pages/MeetingDetailPage';
 import EntitiesPage from '@/pages/EntitiesPage';
 import EntityDetailPage from '@/pages/EntityDetailPage';
+import EntityCleanupPage from '@/pages/EntityCleanupPage';
 import NewMeetingPage from '@/pages/NewMeetingPage';
 import AdminPage from '@/pages/AdminPage';
 
@@ -29,6 +30,7 @@ function App() {
             <Route path="/meetings/:id" element={<MeetingDetailPage />} />
             <Route path="/meetings/new" element={<NewMeetingPage />} />
             <Route path="/entities" element={<EntitiesPage />} />
+            <Route path="/entities/cleanup" element={<EntityCleanupPage />} />
             <Route path="/entities/:id" element={<EntityDetailPage />} />
             <Route path="/admin" element={<AdminPage />} />
           </Routes>

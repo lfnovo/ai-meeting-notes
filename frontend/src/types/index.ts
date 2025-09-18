@@ -118,3 +118,10 @@ export interface ProcessingResult {
   entities: string[];
   action_items: string[];
 }
+
+export interface BulkDeleteResponse {
+  deleted_count: number;
+  failed_ids: number[];
+  errors: string[];
+  message: string;
+}

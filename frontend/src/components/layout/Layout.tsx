@@ -1,11 +1,12 @@
 import { Link, useLocation } from 'react-router-dom';
 import { cn } from '@/lib/utils';
-import { 
-  Calendar, 
-  Users, 
+import {
+  Calendar,
+  Users,
   Home,
   Plus,
-  Settings
+  Settings,
+  Trash2
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 
@@ -17,6 +18,7 @@ const navigation = [
   { name: 'Feed', href: '/', icon: Home },
   { name: 'Meetings', href: '/meetings', icon: Calendar },
   { name: 'Entities', href: '/entities', icon: Users },
+  { name: 'Cleanup', href: '/entities/cleanup', icon: Trash2 },
   { name: 'Admin', href: '/admin', icon: Settings },
 ];
 
