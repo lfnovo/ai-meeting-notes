@@ -540,6 +540,130 @@ class DatabaseManager:
             cursor = await conn.execute("DELETE FROM entities WHERE id = ?", (entity_id,))
             await conn.commit()
             return cursor.rowcount > 0
+
+    async def get_entities_for_cleanup(self) -> List[EntityWithType]:
+        """Get entities with ≤1 associated meetings for cleanup interface"""
+        async with self.get_connection() as conn:
+            try:
+                cursor = await conn.execute("""
+                    SELECT e.*, et.name as type_name, et.color_class as type_color_class
+                    FROM entities e
+                    JOIN entity_types et ON e.type_slug = et.slug
+                    LEFT JOIN meeting_entities me ON e.id = me.entity_id
+                    GROUP BY e.id, e.name, e.type_slug, e.description, e.created_at, et.name, et.color_class
+                    HAVING COUNT(me.meeting_id) <= 1
+                    ORDER BY e.created_at DESC
+                """)
+                rows = await cursor.fetchall()
+
+                return [EntityWithType(**dict(row)) for row in rows]
+            except Exception as e:
+                logger.error(f"Error fetching entities for cleanup: {e}")
+                return []
+
+    async def bulk_delete_entities(self, entity_ids: List[int]) -> Dict[str, Any]:
+        """
+        Bulk delete entities with cascading deletes and detailed error handling
+
+        Args:
+            entity_ids: List of entity IDs to delete
+
+        Returns:
+            Dict with deleted_count, failed_ids, errors list, and message
+        """
+        if not entity_ids:
+            return {
+                "deleted_count": 0,
+                "failed_ids": [],
+                "errors": [],
+                "message": "No entity IDs provided"
+            }
+
+        async with self.get_connection() as conn:
+            deleted_count = 0
+            failed_ids = []
+            errors = []
+
+            try:
+                # First, get entity names before deletion for action_items cascade
+                placeholders = ",".join("?" * len(entity_ids))
+                cursor = await conn.execute(f"""
+                    SELECT id, name FROM entities WHERE id IN ({placeholders})
+                """, entity_ids)
+                entities_data = await cursor.fetchall()
+                entity_names = [row[1] for row in entities_data]
+
+                logger.info(f"Starting bulk delete for {len(entity_ids)} entities")
+
+                # Perform cascading deletes in order
+                for entity_id in entity_ids:
+                    try:
+                        # Get entity name for this specific entity
+                        cursor = await conn.execute("SELECT name FROM entities WHERE id = ?", (entity_id,))
+                        entity_row = await cursor.fetchone()
+
+                        if entity_row:
+                            entity_name = entity_row[0]
+
+                            # 1. Delete action items where assignee matches entity name
+                            await conn.execute("""
+                                DELETE FROM action_items WHERE assignee = ?
+                            """, (entity_name,))
+
+                            # 2. Delete meeting_entities relationships
+                            await conn.execute("""
+                                DELETE FROM meeting_entities WHERE entity_id = ?
+                            """, (entity_id,))
+
+                            # 3. Delete the entity itself
+                            cursor = await conn.execute("""
+                                DELETE FROM entities WHERE id = ?
+                            """, (entity_id,))
+
+                            if cursor.rowcount > 0:
+                                deleted_count += 1
+                                logger.debug(f"Successfully deleted entity {entity_id} ({entity_name})")
+                            else:
+                                failed_ids.append(entity_id)
+                                errors.append(f"Entity {entity_id} not found")
+                        else:
+                            failed_ids.append(entity_id)
+                            errors.append(f"Entity {entity_id} not found")
+
+                    except Exception as e:
+                        failed_ids.append(entity_id)
+                        error_msg = f"Failed to delete entity {entity_id}: {str(e)}"
+                        errors.append(error_msg)
+                        logger.error(error_msg)
+
+                await conn.commit()
+
+                # Generate summary message
+                if deleted_count == len(entity_ids):
+                    message = f"Successfully deleted all {deleted_count} entities"
+                elif deleted_count > 0:
+                    message = f"Deleted {deleted_count} of {len(entity_ids)} entities, {len(failed_ids)} failed"
+                else:
+                    message = f"Failed to delete any entities ({len(failed_ids)} failures)"
+
+                logger.info(f"Bulk delete completed: {message}")
+
+                return {
+                    "deleted_count": deleted_count,
+                    "failed_ids": failed_ids,
+                    "errors": errors,
+                    "message": message
+                }
+
+            except Exception as e:
+                error_msg = f"Bulk delete operation failed: {str(e)}"
+                logger.error(error_msg)
+                return {
+                    "deleted_count": 0,
+                    "failed_ids": entity_ids,
+                    "errors": [error_msg],
+                    "message": "Bulk delete operation failed"
+                }
     
     # Meeting operations
     async def create_meeting(self, meeting_data: MeetingCreate) -> Meeting:
