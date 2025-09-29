@@ -291,25 +291,16 @@ async def bulk_delete_entities(
     request: EntityBulkDelete,
     db: DatabaseManager = Depends(get_db)
 ):
-    """Delete multiple entities by IDs"""
+    """Delete multiple entities by IDs in a transaction"""
     try:
-        entity_ids = request.ids
-        deleted_count = 0
-        failed_ids = []
-        
-        for entity_id in entity_ids:
-            success = await db.delete_entity(entity_id)
-            if success:
-                deleted_count += 1
-            else:
-                failed_ids.append(entity_id)
-        
+        result = await db.bulk_delete_entities(request.ids)
+
         return {
-            "message": f"Successfully deleted {deleted_count} entities",
-            "deleted_count": deleted_count,
-            "failed_ids": failed_ids
+            "message": f"Successfully deleted {result['deleted_count']} entities",
+            "deleted_count": result['deleted_count'],
+            "failed_ids": result['failed_ids']
         }
-        
+
     except Exception as e:
         logger.error(f"Error bulk deleting entities: {e}")
         raise HTTPException(status_code=500, detail=str(e))

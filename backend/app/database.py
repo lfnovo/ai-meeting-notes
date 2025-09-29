@@ -10,7 +10,7 @@ from .models import (
     Entity, Meeting, ActionItem, MeetingEntity, EntityTypeModel, MeetingType,
     EntityCreate, EntityUpdate, MeetingCreate, MeetingUpdate,
     ActionItemCreate, ActionItemUpdate, EntityTypeCreate, EntityTypeUpdate,
-    MeetingTypeCreate, MeetingTypeUpdate, EntityWithType
+    MeetingTypeCreate, MeetingTypeUpdate, EntityWithType, OrphanedEntity
 )
 
 
@@ -300,17 +300,24 @@ class DatabaseManager:
         
         if not updates:
             return await self.get_entity_type_by_id(type_id)
-        
+
+        # Validate field names to prevent SQL injection
+        allowed_fields = {'name', 'color_class', 'description'}
+        for update in updates:
+            field_name = update.split(' = ')[0]
+            if field_name not in allowed_fields:
+                raise ValueError(f"Invalid field name: {field_name}")
+
         values.append(type_id)
-        
+
         async with self.get_connection() as conn:
             await conn.execute(f"""
-                UPDATE entity_types 
+                UPDATE entity_types
                 SET {', '.join(updates)}
                 WHERE id = ?
             """, values)
             await conn.commit()
-            
+
             return await self.get_entity_type_by_id(type_id)
     
     async def delete_entity_type(self, type_id: int) -> bool:
@@ -416,11 +423,19 @@ class DatabaseManager:
             
             if not update_fields:
                 return await self.get_meeting_type_by_id(type_id)
-            
+
+            # Validate field names to prevent SQL injection
+            allowed_fields = {'name', 'description', 'summary_instructions',
+                            'entity_instructions', 'action_item_instructions'}
+            for field in update_fields:
+                field_name = field.split(' = ')[0]
+                if field_name not in allowed_fields:
+                    raise ValueError(f"Invalid field name: {field_name}")
+
             update_values.append(type_id)
-            
+
             cursor = await conn.execute(f"""
-                UPDATE meeting_types 
+                UPDATE meeting_types
                 SET {', '.join(update_fields)}
                 WHERE id = ?
             """, update_values)
@@ -521,17 +536,24 @@ class DatabaseManager:
         
         if not updates:
             return await self.get_entity_by_id(entity_id)
-        
+
+        # Validate field names to prevent SQL injection
+        allowed_fields = {'name', 'type_slug', 'description'}
+        for update in updates:
+            field_name = update.split(' = ')[0]
+            if field_name not in allowed_fields:
+                raise ValueError(f"Invalid field name: {field_name}")
+
         values.append(entity_id)
-        
+
         async with self.get_connection() as conn:
             await conn.execute(f"""
-                UPDATE entities 
+                UPDATE entities
                 SET {', '.join(updates)}
                 WHERE id = ?
             """, values)
             await conn.commit()
-            
+
             return await self.get_entity_by_id(entity_id)
     
     async def delete_entity(self, entity_id: int) -> bool:
@@ -540,7 +562,39 @@ class DatabaseManager:
             cursor = await conn.execute("DELETE FROM entities WHERE id = ?", (entity_id,))
             await conn.commit()
             return cursor.rowcount > 0
-    
+
+    async def bulk_delete_entities(self, entity_ids: List[int]) -> dict:
+        """Delete multiple entities in a transaction"""
+        deleted_count = 0
+        failed_ids = []
+
+        async with self.get_connection() as conn:
+            # Start transaction
+            await conn.execute("BEGIN")
+            try:
+                for entity_id in entity_ids:
+                    cursor = await conn.execute(
+                        "DELETE FROM entities WHERE id = ?",
+                        (entity_id,)
+                    )
+                    if cursor.rowcount > 0:
+                        deleted_count += 1
+                    else:
+                        failed_ids.append(entity_id)
+
+                # Commit transaction only if all went well
+                await conn.commit()
+            except Exception as e:
+                # Rollback on error
+                await conn.execute("ROLLBACK")
+                logger.error(f"Error in bulk delete transaction: {e}")
+                raise
+
+        return {
+            "deleted_count": deleted_count,
+            "failed_ids": failed_ids
+        }
+
     # Meeting operations
     async def create_meeting(self, meeting_data: MeetingCreate) -> Meeting:
         """Create a new meeting"""
@@ -728,7 +782,6 @@ class DatabaseManager:
             """)
             rows = await cursor.fetchall()
 
-            from app.models import OrphanedEntity
             return [OrphanedEntity(**dict(row)) for row in rows]
 
 
