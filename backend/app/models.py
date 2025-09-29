@@ -181,6 +181,14 @@ class EntityWithType(Entity):
         from_attributes = True
 
 
+class OrphanedEntity(EntityWithType):
+    """Entity with meeting count for cleanup purposes"""
+    meeting_count: int = 0
+
+    class Config:
+        from_attributes = True
+
+
 # Response Models with relationships
 class MeetingWithEntities(Meeting):
     entities: List[EntityWithType] = Field(default_factory=list)

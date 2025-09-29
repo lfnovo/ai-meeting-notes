@@ -2,7 +2,7 @@
 
 If you are working on this feature, make sure to update this plan.md file as you go.
 
-## PHASE 1: Backend Implementation [Not Started ⏳]
+## PHASE 1: Backend Implementation [Completed ✅]
 
 This phase focuses on building the backend foundation: database query logic and API endpoint. These can be tested independently before frontend work begins.
 
@@ -10,7 +10,7 @@ This phase focuses on building the backend foundation: database query logic and 
 **Dependencies**: None (can start immediately)
 **Testing**: Use curl/Postman to test endpoints
 
-### Task 1.1: Add database method for orphaned entities [Not Started ⏳]
+### Task 1.1: Add database method for orphaned entities [Completed ✅]
 
 **File**: `backend/app/database.py`
 
@@ -52,7 +52,7 @@ async def get_orphaned_entities(self) -> List[EntityWithType]:
 - Test with database that has entities with 0, 1, and 2+ meetings
 - Verify sorting: 0 meetings first (alphabetical), then 1 meeting (alphabetical)
 
-### Task 1.2: Add API endpoint [Not Started ⏳]
+### Task 1.2: Add API endpoint [Completed ✅]
 
 **File**: `backend/app/api/routes.py`
 
@@ -80,7 +80,7 @@ async def get_orphaned_entities(db: DatabaseManager = Depends(get_db)):
 - Verify JSON response matches `EntityWithType` schema
 - Verify entities are sorted correctly
 
-### Task 1.3: Verify existing bulk delete endpoint [Not Started ⏳]
+### Task 1.3: Verify existing bulk delete endpoint [Completed ✅]
 
 **File**: `backend/app/api/routes.py` (lines 279-305)
 
@@ -107,9 +107,12 @@ curl -X POST http://localhost:8000/api/v1/entities/bulk-delete \
 ```
 
 ### Comments:
-- Backend endpoints should be fully functional before starting frontend work
-- If any issues with SQL query on SQLite, may need to adjust GROUP BY clause
-- Existing bulk delete already handles cascade, no changes needed
+- ✅ Created new `OrphanedEntity` model that extends `EntityWithType` to include `meeting_count` field
+- ✅ SQL query works correctly with SQLite - GROUP BY includes all non-aggregated columns
+- ✅ Endpoint returns correct data: 144 orphaned entities (4 with 0 meetings, 140 with 1 meeting)
+- ✅ Sorting verified: entities with 0 meetings appear first, then 1 meeting, both alphabetically
+- ✅ Bulk delete endpoint tested and working (`/api/v1/entities/bulk-delete`)
+- ⚠️ **Important**: Backend returns `meeting_count` in response, which frontend will use for grouping
 
 ---
 

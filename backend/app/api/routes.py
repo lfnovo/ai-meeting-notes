@@ -10,12 +10,12 @@ from loguru import logger
 from ..database import get_database, DatabaseManager
 from ..models import (
     Entity, Meeting, ActionItem, EntityTypeModel, MeetingType,
-    EntityCreate, EntityUpdate, EntityBulkDelete, EntityBulkUpdateType, 
+    EntityCreate, EntityUpdate, EntityBulkDelete, EntityBulkUpdateType,
     MeetingCreate, MeetingUpdate,
     ActionItemCreate, ActionItemUpdate,
     EntityTypeCreate, EntityTypeUpdate,
     MeetingTypeCreate, MeetingTypeUpdate,
-    MeetingWithEntities, EntityWithMeetings, EntityWithType,
+    MeetingWithEntities, EntityWithMeetings, EntityWithType, OrphanedEntity,
     MeetingProcessRequest
 )
 from ..services.meeting_processor import MeetingProcessor
@@ -224,6 +224,16 @@ async def list_entities(
         return await db.get_entities(limit=limit, offset=offset)
     except Exception as e:
         logger.error(f"Error listing entities: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.get("/entities/orphaned", response_model=List[OrphanedEntity])
+async def get_orphaned_entities(db: DatabaseManager = Depends(get_db)):
+    """Get entities with 0 or 1 meeting associations for cleanup"""
+    try:
+        return await db.get_orphaned_entities()
+    except Exception as e:
+        logger.error(f"Error getting orphaned entities: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
 

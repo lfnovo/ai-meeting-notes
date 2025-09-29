@@ -703,8 +703,33 @@ class DatabaseManager:
                 ORDER BY m.date DESC
             """, (entity_id,))
             rows = await cursor.fetchall()
-            
+
             return [Meeting(**dict(row)) for row in rows]
+
+    async def get_orphaned_entities(self) -> List["OrphanedEntity"]:
+        """Get entities with 0 or 1 meeting associations for cleanup"""
+        async with self.get_connection() as conn:
+            cursor = await conn.execute("""
+                SELECT e.id,
+                       e.name,
+                       e.type_slug,
+                       e.description,
+                       e.created_at,
+                       et.name as type_name,
+                       et.color_class as type_color_class,
+                       COUNT(me.meeting_id) as meeting_count
+                FROM entities e
+                JOIN entity_types et ON e.type_slug = et.slug
+                LEFT JOIN meeting_entities me ON e.id = me.entity_id
+                GROUP BY e.id, e.name, e.type_slug, e.description, e.created_at,
+                         et.name, et.color_class
+                HAVING meeting_count <= 1
+                ORDER BY meeting_count ASC, e.name ASC
+            """)
+            rows = await cursor.fetchall()
+
+            from app.models import OrphanedEntity
+            return [OrphanedEntity(**dict(row)) for row in rows]
 
 
 # Global database instance
