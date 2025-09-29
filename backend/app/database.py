@@ -230,6 +230,8 @@ class DatabaseManager:
             await conn.execute("CREATE INDEX IF NOT EXISTS idx_action_items_meeting ON action_items (meeting_id)")
             await conn.execute("CREATE INDEX IF NOT EXISTS idx_action_items_status ON action_items (status)")
             await conn.execute("CREATE INDEX IF NOT EXISTS idx_meeting_types_slug ON meeting_types (slug)")
+            await conn.execute("CREATE INDEX IF NOT EXISTS idx_meeting_entities_entity_id ON meeting_entities (entity_id)")
+            await conn.execute("CREATE INDEX IF NOT EXISTS idx_meeting_entities_meeting_id ON meeting_entities (meeting_id)")
             
             await conn.commit()
             logger.info("Database initialized successfully")
