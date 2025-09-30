@@ -10,12 +10,12 @@ from loguru import logger
 from ..database import get_database, DatabaseManager
 from ..models import (
     Entity, Meeting, ActionItem, EntityTypeModel, MeetingType,
-    EntityCreate, EntityUpdate, EntityBulkDelete, EntityBulkUpdateType, 
+    EntityCreate, EntityUpdate, EntityBulkDelete, EntityBulkUpdateType,
     MeetingCreate, MeetingUpdate,
     ActionItemCreate, ActionItemUpdate,
     EntityTypeCreate, EntityTypeUpdate,
     MeetingTypeCreate, MeetingTypeUpdate,
-    MeetingWithEntities, EntityWithMeetings, EntityWithType,
+    MeetingWithEntities, EntityWithMeetings, EntityWithType, OrphanedEntity,
     MeetingProcessRequest
 )
 from ..services.meeting_processor import MeetingProcessor
@@ -227,6 +227,16 @@ async def list_entities(
         raise HTTPException(status_code=500, detail=str(e))
 
 
+@router.get("/entities/orphaned", response_model=List[OrphanedEntity])
+async def get_orphaned_entities(db: DatabaseManager = Depends(get_db)):
+    """Get entities with 0 or 1 meeting associations for cleanup"""
+    try:
+        return await db.get_orphaned_entities()
+    except Exception as e:
+        logger.error(f"Error getting orphaned entities: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
 @router.get("/entities/{entity_id}", response_model=EntityWithType)
 async def get_entity(
     entity_id: int,
@@ -281,25 +291,16 @@ async def bulk_delete_entities(
     request: EntityBulkDelete,
     db: DatabaseManager = Depends(get_db)
 ):
-    """Delete multiple entities by IDs"""
+    """Delete multiple entities by IDs in a transaction"""
     try:
-        entity_ids = request.ids
-        deleted_count = 0
-        failed_ids = []
-        
-        for entity_id in entity_ids:
-            success = await db.delete_entity(entity_id)
-            if success:
-                deleted_count += 1
-            else:
-                failed_ids.append(entity_id)
-        
+        result = await db.bulk_delete_entities(request.ids)
+
         return {
-            "message": f"Successfully deleted {deleted_count} entities",
-            "deleted_count": deleted_count,
-            "failed_ids": failed_ids
+            "message": f"Successfully deleted {result['deleted_count']} entities",
+            "deleted_count": result['deleted_count'],
+            "failed_ids": result['failed_ids']
         }
-        
+
     except Exception as e:
         logger.error(f"Error bulk deleting entities: {e}")
         raise HTTPException(status_code=500, detail=str(e))

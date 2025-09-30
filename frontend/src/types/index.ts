@@ -48,6 +48,10 @@ export interface EntityWithMeetings extends Entity {
   meetings: Meeting[];
 }
 
+export interface OrphanedEntity extends Entity {
+  meeting_count: number; // Will be 0 or 1
+}
+
 export interface EntityCreate {
   name: string;
   type_slug: string;
@@ -117,4 +121,14 @@ export interface ProcessingResult {
   summary: string;
   entities: string[];
   action_items: string[];
+}
+
+export interface EntityWithUsageStats extends Entity {
+  meeting_count: number;
+}
+
+export interface BulkDeleteResponse {
+  message: string;
+  deleted_count: number;
+  failed_ids: number[];
 }

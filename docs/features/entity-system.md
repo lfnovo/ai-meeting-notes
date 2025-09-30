@@ -249,6 +249,196 @@ async def bulk_update_entity_type(
     return {"updated": updated_count, "total": len(data.ids)}
 ```
 
+## Entity Cleanup and Maintenance
+
+### Orphaned Entity Management
+
+The Entity Cleanup feature helps maintain database hygiene by identifying and removing entities with minimal meeting associations. This addresses the natural accumulation of low-value entities from automatic extraction processes.
+
+**Orphaned Entity Definition**:
+An entity is considered "orphaned" if it has 0 or 1 meeting associations. These entities don't contribute to the system's core value proposition of tracking relationships *across multiple meetings*.
+
+### Identifying Orphaned Entities
+
+**Database Query**:
+```python
+async def get_orphaned_entities(self) -> List[OrphanedEntity]:
+    """Get entities with 0 or 1 meeting associations"""
+    async with self.get_connection() as conn:
+        cursor = await conn.execute("""
+            SELECT e.*,
+                   et.name as type_name,
+                   et.color_class as type_color_class,
+                   COUNT(me.meeting_id) as meeting_count
+            FROM entities e
+            JOIN entity_types et ON e.type_slug = et.slug
+            LEFT JOIN meeting_entities me ON e.id = me.entity_id
+            GROUP BY e.id, e.name, e.type_slug, e.description, e.created_at,
+                     et.name, et.color_class
+            HAVING meeting_count <= 1
+            ORDER BY meeting_count ASC, e.name ASC
+        """)
+        rows = await cursor.fetchall()
+        return [OrphanedEntity(**dict(row)) for row in rows]
+```
+
+**Key Query Features**:
+- `LEFT JOIN` ensures entities with 0 meetings are included
+- `GROUP BY` aggregates meeting associations per entity
+- `HAVING` filters for ≤1 meeting count
+- Returns enriched entity data with type information
+
+**OrphanedEntity Model**:
+```python
+class OrphanedEntity(EntityWithType):
+    meeting_count: int  # Will be 0 or 1
+```
+
+### Transaction-Safe Bulk Deletion
+
+To ensure data integrity during cleanup operations, bulk deletions use database transactions:
+
+```python
+async def bulk_delete_entities(self, entity_ids: List[int]) -> dict:
+    """Delete multiple entities in a transaction"""
+    deleted_count = 0
+    failed_ids = []
+
+    async with self.get_connection() as conn:
+        # Start transaction
+        await conn.execute("BEGIN")
+        try:
+            for entity_id in entity_ids:
+                cursor = await conn.execute(
+                    "DELETE FROM entities WHERE id = ?",
+                    (entity_id,)
+                )
+                if cursor.rowcount > 0:
+                    deleted_count += 1
+                else:
+                    failed_ids.append(entity_id)
+
+            # Commit only if all deletions succeed
+            await conn.commit()
+        except Exception as e:
+            # Rollback on error
+            await conn.execute("ROLLBACK")
+            logger.error(f"Error in bulk delete transaction: {e}")
+            raise
+
+    return {
+        "deleted_count": deleted_count,
+        "failed_ids": failed_ids
+    }
+```
+
+**Transaction Benefits**:
+- All deletions succeed together or none do (atomicity)
+- Prevents partial deletions on errors
+- Maintains database consistency
+- Automatic cascade to `meeting_entities` junction table
+
+### Entity Cleanup API
+
+**Get Orphaned Entities**:
+```python
+@router.get("/entities/orphaned", response_model=List[OrphanedEntity])
+async def get_orphaned_entities(db: DatabaseManager = Depends(get_db)):
+    """Get entities with 0 or 1 meeting associations for cleanup"""
+    return await db.get_orphaned_entities()
+```
+
+**Bulk Delete with Transactions**:
+```python
+@router.post("/entities/bulk-delete")
+async def bulk_delete_entities(
+    request: EntityBulkDelete,
+    db: DatabaseManager = Depends(get_db)
+):
+    """Delete multiple entities by IDs in a transaction"""
+    result = await db.bulk_delete_entities(request.ids)
+
+    return {
+        "message": f"Successfully deleted {result['deleted_count']} entities",
+        "deleted_count": result['deleted_count'],
+        "failed_ids": result['failed_ids']
+    }
+```
+
+### Cleanup UI Features
+
+The Entity Cleanup page (`/entity-cleanup`) provides a comprehensive interface for reviewing and removing orphaned entities:
+
+**Statistics Dashboard**:
+- Quick metrics showing counts for 0-meeting, 1-meeting, and total orphaned entities
+- Real-time updates after cleanup operations
+
+**Grouped Entity Display**:
+- **Section 1**: Entities with 0 meetings (likely extraction errors)
+- **Section 2**: Entities with 1 meeting (potential one-time participants)
+- Alphabetical sorting within each group
+
+**Selection System**:
+- Individual checkboxes for selective cleanup
+- "Select all" option for bulk operations
+- Visual feedback with highlight rings on selected entities
+- Running count in delete button (e.g., "Delete Selected (5)")
+
+**Safety Mechanisms**:
+- Required confirmation modal before deletion
+- Clear breakdown by entity type (e.g., "5 People, 3 Companies")
+- Explicit warning that deletion is permanent
+- Cancel option at confirmation stage
+
+**User Experience**:
+```typescript
+// TanStack Query for data fetching and cache management
+const { data: orphanedEntities } = useQuery({
+  queryKey: ['entities', 'orphaned'],
+  queryFn: async () => {
+    const response = await entityApi.getOrphaned();
+    return response.data;
+  },
+});
+
+// Bulk delete mutation with automatic cache invalidation
+const bulkDeleteMutation = useMutation({
+  mutationFn: (ids: number[]) => entityApi.bulkDelete(ids),
+  onSuccess: (response) => {
+    queryClient.invalidateQueries({ queryKey: ['entities'] });
+    queryClient.invalidateQueries({ queryKey: ['entities', 'orphaned'] });
+    setSuccessMessage(`Successfully deleted ${response.data.deleted_count} entities`);
+  },
+});
+```
+
+### Common Cleanup Scenarios
+
+**Post-Import Cleanup**: After processing many meetings, remove false positives from automatic entity extraction.
+
+**Periodic Maintenance**: Regular review and removal of one-time entities that don't contribute to relationship insights.
+
+**Quality Improvement**: Analyze patterns in frequently misidentified entities to refine extraction prompts.
+
+**Testing Cleanup**: Remove development or test entities without affecting production data.
+
+### Security Considerations
+
+**SQL Injection Prevention**: All entity update operations validate field names against whitelists before query execution:
+
+```python
+# Example from update_entity method
+allowed_fields = {'name', 'type_slug', 'description'}
+for update in updates:
+    field_name = update.split(' = ')[0]
+    if field_name not in allowed_fields:
+        raise ValueError(f"Invalid field name: {field_name}")
+```
+
+**Referential Integrity**: Foreign key cascades ensure no orphaned records remain in junction tables after entity deletion.
+
+For detailed implementation specifications, see [Entity Cleanup Feature Documentation](./entity-cleanup.md).
+
 ## Entity Type Administration
 
 ### Dynamic Type Management
